@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
+import path from 'node:path';
 
 
 console.log("Starting...");
@@ -18,6 +19,9 @@ const rl = readline.createInterface({ input, output });
 // y or n
 const validationRegex = /[y, n]/mi;
 
+// match every string with a dot in the name w/o it being at the first index
+const regexFileExtension = /^[^.]+\.(.+)$/;
+
 const folderExtension = {
     "Pictures": ["jpg", "jpeg", "png", "bmp", "wepb", "svg", "ico", "psd", "ai", "eps"],
     "Sounds": ["mid", "midi", "mp3", "ogg", "wav", "flac", "aac", "ogg", "m4a", "opus"],
@@ -29,6 +33,10 @@ const folderExtension = {
     "Video": ["gif", "mkv", "mp4", "avi", "mov", "wmv", "flv", "webm", "m4v", "3gp"],
     "Text": ["txt", "rtf", "doc", "docx", "odt", "tex", "md", "rst", "log", "pdf"],
 }
+
+// Data structure transformaton
+const ProcessedFolder = processedFolderExtension();
+
 
 function processedFolderExtension() {
     let newFolderExtension: processedObjectType = {};
@@ -42,8 +50,6 @@ function processedFolderExtension() {
     return newFolderExtension;
 }
 
-// Data structure transformaton
-const ProcessedFolder = processedFolderExtension();
 
 async function promptingToUser(message: string, assertionCallback: (errorMessage: string) => boolean | Error, retriesCounter: number = 0) {
     let userResponse:linkType = "";
@@ -153,11 +159,9 @@ function createNewFolders(grouperFolder: string, folders: Array<string>) {
     
 }
 
-async function promptSortExistingFile(userFolderList: Array<string>) {
+async function promptSortExistingFile(folderLink: string) {
 
-    // Check for file with a dot  in the name who is not on the first index
-    // TODO: Refine the regex for edge case like .tar.gz
-    const regexFileExtension = /(?<!^)\.([^.]+)$/gm;
+    let count: number = 0;
     
         let value = await promptingToUser("Do you want to classify all the existing files in the folders you created? (y/n)",function(userMessage: string) {
             // Must include either y or n
@@ -168,32 +172,41 @@ async function promptSortExistingFile(userFolderList: Array<string>) {
             }
         })
 
-        const filesGrouperFolder = fs.readdirSync(grouperFolderLink).filter((x) => x.match(regexFileExtension));
+        const filesGrouperFolder = fs.readdirSync(folderLink).filter((x) => x.match(regexFileExtension));
 
-        console.log(filesGrouperFolder);
-        console.log(value);
+        if (value === "y") {
+            for (let i = 0; i < filesGrouperFolder.length; i++) {
+                let fileName = filesGrouperFolder[i];
+                let extractedExtension = getFileExtension(fileName);
+                if (!extractedExtension) {
+                    continue;
+                } else {
+                    // Verify if the extension exist in the object
+                    if (ProcessedFolder[ extractedExtension ]) {
+                        let folderToMoveTo = ProcessedFolder[extractedExtension];
+                        fs.renameSync(`${folderLink}${path.sep}${fileName}`, `${folderLink}${path.sep}${folderToMoveTo}${path.sep}${fileName}`)
+                        console.log(`${folderLink}${path.sep}${fileName} -> ${folderLink}${path.sep}${folderToMoveTo}${path.sep}${fileName}`);
+                        count++
+                    } else {
+                        continue;
+                    }
+                }
+            }
+            console.log(`${count} files has been moved.`);
+            return null;
+        } else {
+            return null;
+        }
 
-        // TODO: finish the function with the newly created object ProcessedFolder
+}
 
-        
-        // for (let i = 0; i < filesGrouperFolder.length; i++) {
-            
-        // }
+function getFileExtension(fileName: string) {
 
-
-
-        // if (value === "y") {
-        //     for (let i = 0; i < userFolderList.length; i++) {
-        //         // Loop over
-        //         for (let i = 0; i < filesGrouperFolder.length; i++) {
-        //             filesGrouperFolder[i];
-                    
-        //         }
-                
-        //     }
-        // } else {
-        //     return null;
-        // }
+    if (regexFileExtension.test(fileName)) {
+        return fileName.match(regexFileExtension)![1]
+    } else {
+        return false;
+    }
 
 }
 
@@ -204,25 +217,28 @@ if (!userNewFolders) {
     console.log("No new folders will be created.");
 } else {
     createNewFolders(grouperFolderLink, userNewFolders);
-    await promptSortExistingFile(userNewFolders);
+    await promptSortExistingFile(grouperFolderLink);
 }
 
 rl.close()
 
-// fs.watch(grouperFolderLink, (eventType, filename) => {
-//     console.log(`event type is: ${eventType}`);
-//     if (filename) {
-//         // TODO: Implement a check if weither the file exist or not before trying to move it
-//         // TODO2:Get the extension of the file if it's among the extension I watch move to corresponding folder
-//         // TODO3: Regine the regex so the dot is not in the resulting string
-//         console.log(`filename provided: ${filename}`);
-//         if (filename.match(/\.[0-9a-z]+$/i) !== null) {
-//             console.log(filename.match(/\.[0-9a-z]+$/i)!.join(""));
-//         }
-//     } else {
-//         console.log('filename not provided');
-//     }
-// }); 
+fs.watch(grouperFolderLink, (eventType, fileNameWatched) => {
+    console.log(`event type is: ${eventType}`);
+    if (fileNameWatched) {
+        console.log(`filename provided: ${fileNameWatched}`);
+        let fileExtensionWatched = getFileExtension(fileNameWatched);
+        // Check if the file exist
+        // Check if the regex returned something
+        // Check if the fileExtension is among the one we manage
+        if (fs.existsSync(`${grouperFolderLink}${path.sep}${fileNameWatched}`) && fileExtensionWatched && ProcessedFolder[fileExtensionWatched]) {
+            // TODO: Implement check if the folder we are trying to move is actually created and have been selected by the user. prob just make a fs.exists(targetfolder)
+            let targetFolder = ProcessedFolder[fileExtensionWatched];
+            fs.renameSync(`${grouperFolderLink}${path.sep}${fileNameWatched}`, `${grouperFolderLink}${path.sep}${targetFolder}${path.sep}${fileNameWatched}`)
+        }
+    } else {
+        console.log('filename not provided');
+    }
+}); 
 
 
 
