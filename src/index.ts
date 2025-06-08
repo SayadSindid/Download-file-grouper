@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 import path from 'node:path';
+import { fork } from "node:child_process";
 
 
 console.log("Starting...");
@@ -9,7 +10,7 @@ console.log("Starting...");
 type linkType = string;
 
 // Dynamic key type necessary otherwise IDE error
-type processedObjectType = {
+export type processedObjectType = {
     [key: string]: string;
 };
 
@@ -104,6 +105,7 @@ async function promptDownloadFolder() {
     // The callback manage the validation condition and the error throwing
     return await promptingToUser("Download folder location:", function(userMessage: string) {
         // Must include either / or \ (handling linux and windows path)
+        // TODO: Implement a more robust check to assert it is a correct path
         if (!userMessage.includes("/") && !userMessage.includes("\\")) {
             return new Error("Incorrect download folder link. Please re-type your download folder location");
         } else {
@@ -113,7 +115,7 @@ async function promptDownloadFolder() {
 
 }
 
-async function promptFolderChoice() {
+async function promptFolderChoice(folderLink: string) {
 
     let folderList = ["Pictures", "Sounds", "Data", "Compressed", "Subtitles", "Executable", "Font", "Video", "Text"];
     let value: string;
@@ -132,6 +134,10 @@ async function promptFolderChoice() {
             // TODO: Add message "This folder will be created" or nothing
             console.log("gg");
         } else {
+            // Check if folder exist then don't remove it from the array
+            if (fs.existsSync(`${folderLink}${path.sep}${folderList[i]}`)) {
+                continue;
+            }
             // Note to self: The index need to be decremanted because
             // everything is shifted to the left when splicing an element.
             folderList.splice(i, 1);
@@ -211,7 +217,7 @@ function getFileExtension(fileName: string) {
 }
 
 const grouperFolderLink: linkType = await promptDownloadFolder();
-const userNewFolders = await promptFolderChoice();
+const userNewFolders = await promptFolderChoice(grouperFolderLink);
 
 if (!userNewFolders) {
     console.log("No new folders will be created.");
@@ -220,26 +226,16 @@ if (!userNewFolders) {
     await promptSortExistingFile(grouperFolderLink);
 }
 
-rl.close()
+export { getFileExtension };
 
-fs.watch(grouperFolderLink, (eventType, fileNameWatched) => {
-    console.log(`event type is: ${eventType}`);
-    if (fileNameWatched) {
-        console.log(`filename provided: ${fileNameWatched}`);
-        let fileExtensionWatched = getFileExtension(fileNameWatched);
-        // Check if the file exist
-        // Check if the regex returned something
-        // Check if the fileExtension is among the one we manage
-        if (fs.existsSync(`${grouperFolderLink}${path.sep}${fileNameWatched}`) && fileExtensionWatched && ProcessedFolder[fileExtensionWatched]) {
-            // TODO: Implement check if the folder we are trying to move is actually created and have been selected by the user. prob just make a fs.exists(targetfolder)
-            let targetFolder = ProcessedFolder[fileExtensionWatched];
-            fs.renameSync(`${grouperFolderLink}${path.sep}${fileNameWatched}`, `${grouperFolderLink}${path.sep}${targetFolder}${path.sep}${fileNameWatched}`)
-        }
-    } else {
-        console.log('filename not provided');
-    }
-}); 
-
-
+const childProcess = fork("./src/fileWatcherProcess.ts");
+childProcess.send({grouperFolderLink, ProcessedFolder})
 
 console.log("Closing...");
+rl.close()
+
+
+
+
+
+
