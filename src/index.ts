@@ -3,25 +3,20 @@ import * as readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 import path from 'node:path';
 import { fork } from "node:child_process";
+import { regexFileExtension, getFileExtension } from "./utils.js";
+import type { processedObjectType } from "./utils.js";
 
 
 console.log("Starting...");
 
 type linkType = string;
 
-// Dynamic key type necessary otherwise IDE error
-export type processedObjectType = {
-    [key: string]: string;
-};
 
 // New class thingy to manipulate Input/Output
 const rl = readline.createInterface({ input, output });
 
 // y or n
 const validationRegex = /[y, n]/mi;
-
-// match every string with a dot in the name w/o it being at the first index
-const regexFileExtension = /^[^.]+\.(.+)$/;
 
 const folderExtension = {
     "Pictures": ["jpg", "jpeg", "png", "bmp", "wepb", "svg", "ico", "psd", "ai", "eps"],
@@ -206,16 +201,6 @@ async function promptSortExistingFile(folderLink: string) {
 
 }
 
-function getFileExtension(fileName: string) {
-
-    if (regexFileExtension.test(fileName)) {
-        return fileName.match(regexFileExtension)![1]
-    } else {
-        return false;
-    }
-
-}
-
 const grouperFolderLink: linkType = await promptDownloadFolder();
 const userNewFolders = await promptFolderChoice(grouperFolderLink);
 
@@ -226,13 +211,23 @@ if (!userNewFolders) {
     await promptSortExistingFile(grouperFolderLink);
 }
 
-export { getFileExtension };
+// Detach the child process from the parent
+const childProcess = fork("fileWatcherProcess.js", {
+    detached: true,
+    stdio: "ignore",
+});
 
-const childProcess = fork("./src/fileWatcherProcess.ts");
+// Send and object with these 2 variable to the child
 childProcess.send({grouperFolderLink, ProcessedFolder})
 
-console.log("Closing...");
-rl.close()
+// After receiving the message close the parent
+childProcess.on("message", function () {
+    // Separate link between parent/child
+    childProcess.unref();
+    console.log("Closing...");
+    process.exit()
+})
+
 
 
 

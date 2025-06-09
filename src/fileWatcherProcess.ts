@@ -1,5 +1,5 @@
-import { getFileExtension } from "./index.ts";
-import type {processedObjectType} from "./index.ts";
+import { getFileExtension } from "./utils.js";
+import type { processedObjectType } from "./utils.js";
 import * as fs from 'node:fs';
 import path from 'node:path';
 
@@ -7,6 +7,11 @@ interface message {
     grouperFolderLink: string;
     ProcessedFolder: processedObjectType;
 }
+
+process.title = "fileGrouperWatcher_Script"
+
+// Message to close the parent process after we established the child
+process.send!("close");
 
 process.on("message", function (message: message) {
     const ProcessedFolder = message.ProcessedFolder;

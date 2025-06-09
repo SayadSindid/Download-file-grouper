@@ -5,13 +5,14 @@
 		"module": "nodenext",
 		"lib": ["ES2020", "DOM", "DOM.Iterable"],
 		"skipLibCheck": true,
+		"outDir": "dist",
 
 		/* Bundler mode */
 		"moduleResolution": "nodenext",
-		"allowImportingTsExtensions": true,
+		"allowImportingTsExtensions": false,
 		"verbatimModuleSyntax": true,
 		"moduleDetection": "force",
-		"noEmit": true,
+		"noEmit": false,
 
 		/* Linting */
 		"strict": true,
