@@ -4,13 +4,10 @@ import { stdin as input, stdout as output } from 'node:process';
 import path from 'node:path';
 import { fork } from "node:child_process";
 import { regexFileExtension, getFileExtension } from "./utils.js";
-import type { processedObjectType } from "./utils.js";
+import type { generalObjectType } from "./utils.js";
 
 
 console.log("Starting...");
-
-type linkType = string;
-
 
 // New class thingy to manipulate Input/Output
 const rl = readline.createInterface({ input, output });
@@ -35,7 +32,7 @@ const ProcessedFolder = processedFolderExtension();
 
 
 function processedFolderExtension() {
-    let newFolderExtension: processedObjectType = {};
+    let newFolderExtension: generalObjectType = {};
 
     for (const [key, value] of Object.entries(folderExtension)) {
         for (let i = 0; i < value.length; i++) {
@@ -48,7 +45,7 @@ function processedFolderExtension() {
 
 
 async function promptingToUser(message: string, assertionCallback: (errorMessage: string) => boolean | Error, retriesCounter: number = 0) {
-    let userResponse:linkType = "";
+    let userResponse:string = "";
     
     try {
         // Prompting the user
@@ -58,7 +55,7 @@ async function promptingToUser(message: string, assertionCallback: (errorMessage
 
         let callbackResponse = assertionCallback(userResponse)
 
-        if (callbackResponse === true) {
+        if (callbackResponse) {
             return userResponse;
         } else {
             throw callbackResponse;
@@ -87,10 +84,7 @@ async function promptingToUser(message: string, assertionCallback: (errorMessage
             // The callback is re-called and re-asigned anyway
             return await promptingToUser(message, assertionCallback, retriesCounter + 1);
         } else {
-            // Handling unregistered Error
-            console.log(error);
-            console.log("Unregistered Error, exiting the program.");
-            process.exit();
+            handlingUnrecognizedError(error);
         }
     }
 }
@@ -113,7 +107,8 @@ async function promptDownloadFolder() {
 async function promptFolderChoice(folderLink: string) {
 
     let folderList = ["Pictures", "Sounds", "Data", "Compressed", "Subtitles", "Executable", "Font", "Video", "Text"];
-    let value: string;
+    // Why do I need to put undefined??
+    let value: string | undefined;
 
     for (let i = 0; i < folderList.length; i++) {
         value = await promptingToUser(`Create ${folderList[i]} folder? (y/n)`, function(userMessage: string) {
@@ -201,14 +196,59 @@ async function promptSortExistingFile(folderLink: string) {
 
 }
 
-const grouperFolderLink: linkType = await promptDownloadFolder();
-const userNewFolders = await promptFolderChoice(grouperFolderLink);
+function handlingUnrecognizedError(error: unknown) {
+    console.log(error);
+    console.log("Unregistered Error, exiting the program.");
+    process.exit(1);
+}
 
-if (!userNewFolders) {
-    console.log("No new folders will be created.");
+let grouperFolderLink: string | undefined;
+let newCacheObject: generalObjectType = {};
+const pathConfigFile = `${process.cwd()}${path.sep}config_filewatcher.json`;
+
+
+if (fs.existsSync(pathConfigFile)) {
+    // reading config file logic
+    const JSONData = fs.readFileSync(pathConfigFile, {
+        encoding: "utf-8",
+    });
+    const cachedData: generalObjectType = JSON.parse(JSONData);
+    
+    grouperFolderLink = cachedData.cachedGrouperFolderLink;
+    
 } else {
-    createNewFolders(grouperFolderLink, userNewFolders);
-    await promptSortExistingFile(grouperFolderLink);
+
+    grouperFolderLink = await promptDownloadFolder();
+
+    if (typeof grouperFolderLink === "undefined") {
+        console.log("TypeError: grouperFolderLink is undefined");
+        process.exit(1);
+    }
+
+    // Caching logic
+    try {
+        newCacheObject.cachedGrouperFolderLink = grouperFolderLink;
+        fs.writeFileSync(pathConfigFile, JSON.stringify(newCacheObject));
+        console.log("A new config file config_filewatcher.json has been created.");
+        // Too much?
+        console.log("You won't have to re-do the prompt the next time you launch the script");
+    } catch (error) {
+        if (error instanceof Error) {
+            console.log(error.message);
+            process.exit(1)
+        } else {
+            handlingUnrecognizedError(error);
+        }
+    }
+
+    // Prompting flow
+    const userNewFolders = await promptFolderChoice(grouperFolderLink);
+    if (!userNewFolders) {
+        console.log("No new folders will be created.");
+    } else {
+        createNewFolders(grouperFolderLink, userNewFolders);
+        await promptSortExistingFile(grouperFolderLink);
+    }
 }
 
 // Detach the child process from the parent

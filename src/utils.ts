@@ -1,7 +1,7 @@
 
 
 // Dynamic key type necessary otherwise IDE error
-type processedObjectType = {
+type generalObjectType = {
 	[key: string]: string;
 };
 
@@ -17,4 +17,4 @@ function getFileExtension(fileName: string) {
 }
 
 export { regexFileExtension, getFileExtension };
-export type { processedObjectType };
+export type { generalObjectType };

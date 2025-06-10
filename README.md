@@ -1,7 +1,7 @@
 # DOWNLOAD FILE GROUPER
 
 **TODO:**  
-- Implement the caching of the download folder directory in order to use it as a background script everytime the script is launched.  
+~~- Implement the caching of the download folder directory in order to use it as a background script everytime the script is launched.~~  
 ~~- Make the process a background script once the user has answered all the prompts.~~
 
 **Additional features:**  
