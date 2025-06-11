@@ -16,5 +16,12 @@ function getFileExtension(fileName: string) {
 	}
 }
 
-export { regexFileExtension, getFileExtension };
+function handlingUnrecognizedError(error: unknown) {
+    console.log(error);
+    console.log("Unregistered Error, exiting the program.");
+    process.exit(1);
+}
+
+
+export { regexFileExtension, getFileExtension, handlingUnrecognizedError };
 export type { generalObjectType };

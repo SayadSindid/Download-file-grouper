@@ -12,6 +12,9 @@ process.title = "fileGrouperWatcher_Script"
 
 // Message to close the parent process after we established the child
 process.send!("close");
+const pathLogsFile = `${process.cwd()}${path.sep}logs_filewatcher.txt`;
+let logsContent: string;
+
 
 process.on("message", function (message: message) {
     const ProcessedFolder = message.ProcessedFolder;
@@ -31,9 +34,22 @@ process.on("message", function (message: message) {
                 // Check if the folder we are trying to move is actually created and have been selected by the user.
                 if (fs.existsSync(`${grouperFolderLink}${path.sep}${fileNameWatched}`) && ProcessedFolder[fileExtensionWatched] && fs.existsSync(`${grouperFolderLink}${path.sep}${targetFolder}`)) {
                     fs.renameSync(`${grouperFolderLink}${path.sep}${fileNameWatched}`, `${grouperFolderLink}${path.sep}${targetFolder}${path.sep}${fileNameWatched}`)
-                    // Implement logging loging here
-                    // console.log(`${grouperFolderLink}${path.sep}${fileNameWatched} -> ${grouperFolderLink}${path.sep}${targetFolder}${path.sep}${fileNameWatched}`);
-                }    
+                    // logging logic
+                    let timeNow = new Date();
+                    let timeString: string = `[${timeNow.toLocaleString("en-GB")}]`;
+                    logsContent = timeString + ` - ${grouperFolderLink}${path.sep}${fileNameWatched} -> ${grouperFolderLink}${path.sep}${targetFolder}${path.sep}${fileNameWatched}`;
+                        try {
+                            fs.appendFileSync(pathLogsFile, `${JSON.stringify(logsContent)}\n`);
+                        } catch (error) {
+                            if (error instanceof Error) {
+                                logsContent = timeString + error.message;
+                                fs.appendFileSync(pathLogsFile, `${JSON.stringify(logsContent)}\n`);
+                                process.exit(1)
+                            } else {
+                                process.exit(1);
+                            }
+                        }
+                }
             }
         } else {
             // console.log('filename not provided');

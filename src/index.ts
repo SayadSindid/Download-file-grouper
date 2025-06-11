@@ -3,7 +3,7 @@ import * as readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 import path from 'node:path';
 import { fork } from "node:child_process";
-import { regexFileExtension, getFileExtension } from "./utils.js";
+import { regexFileExtension, getFileExtension, handlingUnrecognizedError } from "./utils.js";
 import type { generalObjectType } from "./utils.js";
 
 
@@ -194,12 +194,6 @@ async function promptSortExistingFile(folderLink: string) {
             return null;
         }
 
-}
-
-function handlingUnrecognizedError(error: unknown) {
-    console.log(error);
-    console.log("Unregistered Error, exiting the program.");
-    process.exit(1);
 }
 
 let grouperFolderLink: string | undefined;
