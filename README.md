@@ -6,4 +6,4 @@
 
 **Additional features:**  
 - Implement choice of which file extension you want to group.  
-- Add a log text file of all the file that were moved to which folder.  
+~~- Add a log text file of all the file that were moved to which folder.~~  
