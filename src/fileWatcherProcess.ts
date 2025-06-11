@@ -55,6 +55,7 @@ process.on("message", function (message: message) {
             // console.log('filename not provided');
         }
     }); 
-
 })
+
+// TODO: CLEANUP config file old PID
 

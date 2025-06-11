@@ -3,9 +3,8 @@ import * as readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 import path from 'node:path';
 import { fork } from "node:child_process";
-import { regexFileExtension, getFileExtension, handlingUnrecognizedError } from "./utils.js";
-import type { generalObjectType } from "./utils.js";
-
+import { regexFileExtension, getFileExtension, handlingUnrecognizedError, pathConfigFile } from "./utils.js";
+import type { generalObjectType, objectCacheData } from "./utils.js";
 
 console.log("Starting...");
 
@@ -198,7 +197,6 @@ async function promptSortExistingFile(folderLink: string) {
 
 let grouperFolderLink: string | undefined;
 let newCacheObject: generalObjectType = {};
-const pathConfigFile = `${process.cwd()}${path.sep}config_filewatcher.json`;
 
 
 if (fs.existsSync(pathConfigFile)) {
@@ -206,33 +204,33 @@ if (fs.existsSync(pathConfigFile)) {
     const JSONData = fs.readFileSync(pathConfigFile, {
         encoding: "utf-8",
     });
-    const cachedData: generalObjectType = JSON.parse(JSONData);
-    
-    grouperFolderLink = cachedData.cachedGrouperFolderLink;
+    const cachedData: objectCacheData = JSON.parse(JSONData);
+
+
+// Verify no watcher are currently running.
+    try {
+        process.kill(cachedData.PID, 0);
+        console.log("A watcher is already running.");
+        console.log("Closing...");
+        process.exit(0);
+    } catch (error) {
+        console.log("A new watcher has started.");
+    }
+
+    // I know it's a string
+    grouperFolderLink = cachedData.grouperFolderLink;
     
 } else {
 
     grouperFolderLink = await promptDownloadFolder();
+    
+    console.log("A new config file config_filewatcher.json has been created.");
+    // Too much?
+    console.log("You won't have to re-do the prompt the next time you launch the script");
 
     if (typeof grouperFolderLink === "undefined") {
         console.log("TypeError: grouperFolderLink is undefined");
         process.exit(1);
-    }
-
-    // Caching logic
-    try {
-        newCacheObject.cachedGrouperFolderLink = grouperFolderLink;
-        fs.writeFileSync(pathConfigFile, JSON.stringify(newCacheObject));
-        console.log("A new config file config_filewatcher.json has been created.");
-        // Too much?
-        console.log("You won't have to re-do the prompt the next time you launch the script");
-    } catch (error) {
-        if (error instanceof Error) {
-            console.log(error.message);
-            process.exit(1)
-        } else {
-            handlingUnrecognizedError(error);
-        }
     }
 
     // Prompting flow
@@ -251,6 +249,31 @@ const childProcess = fork("fileWatcherProcess.js", {
     stdio: "ignore",
 });
 
+
+if (typeof childProcess.pid === "undefined") {
+    console.log("TypeError: childProcess is undefined");
+    process.exit(1);
+} else {
+    newCacheObject.PID = childProcess.pid;
+}
+newCacheObject.grouperFolderLink = grouperFolderLink;
+
+
+    // Caching logic
+try {
+    // saving config file
+    fs.writeFileSync(pathConfigFile, JSON.stringify(newCacheObject));
+} catch (error) {
+    if (error instanceof Error) {
+        console.log(error.message);
+        process.exit(1)
+    } else {
+        handlingUnrecognizedError(error);
+    }
+}
+
+
+
 // Send and object with these 2 variable to the child
 childProcess.send({grouperFolderLink, ProcessedFolder})
 
@@ -261,10 +284,5 @@ childProcess.on("message", function () {
     console.log("Closing...");
     process.exit()
 })
-
-
-
-
-
 
 
